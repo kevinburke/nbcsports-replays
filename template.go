@@ -13,45 +13,56 @@ var indexStr = `
 	li, p {
 		font-size: 16px;
 	}
+	body {
+		margin-bottom: 40px;
+	}
 	</style>
 
 </head>
 <body>
 	<div class="container">
-		<div class="col-md-12">
-			<h1>NBC Replays</h1>
-			<p>
-			It's really difficult to get to the full event replays on the NBC
-			site without seeing spoilers. Instead, all of the replays are
-			listed here, with direct links to the page and no spoilers.
-			</p>
-			<p>
-			<b>Why isn't my game here?</b> NBC doesn't post replays for all
-			games, occasionally they post late, and they disappear after
-			some amount of time. Sorry :(
-			</p>
+		<div class="row">
+			<div class="col-md-12">
+				<h1>NBC Replays</h1>
+			</div>
 		</div>
-		<div class="col-md-6">
-			{{ $sports := . }}
-			{{ range $index, $sport := $sports }}
-
-				{{ if ($sports.ShouldSplit $index) }}
-		</div>
-		<div class="col-md-6">
-				{{ end }}
-
-				<h2>{{ $sport.Name }}</h2>
-				<ul>
-				{{ range $sport.Events }}
-					<li><a href="{{ .DestinationURL }}">{{ .Title }}</a>
-				{{ end }}
-				</ul>
-				{{ if eq $sport.Name "Premier League" }}
+		<div class="row">
+			<div class="col-md-8">
 				<p>
-				Be sure to click the "Don't show scores from other games" bar
-				at the top of the page, once you get there.
+				It's really difficult to get to the full event replays on the NBC
+				site without seeing spoilers. Instead, all of the replays are
+				listed here, with direct links to the page and no spoilers.
+				</p>
+				<p>
+				<b>Why isn't my game here?</b> NBC doesn't post replays for all
+				games, occasionally they post late, and they disappear after
+				some amount of time. Sorry :(
+				</p>
+			</div>
+		</div>
+		<div class="row">
+			<div class="col-md-6">
+				{{ $sports := . }}
+				{{ range $index, $sport := $sports }}
+
+					{{ if ($sports.ShouldSplit $index) }}
+			</div>
+			<div class="col-md-6">
+					{{ end }}
+
+					<h2>{{ $sport.Name }}</h2>
+					<ul>
+					{{ range $sport.Events }}
+						<li><a href="{{ .DestinationURL }}">{{ .Title }}</a>
+					{{ end }}
+					</ul>
+					{{ if eq $sport.Name "Premier League" }}
+					<p>
+					Be sure to click the "Don't show scores from other games" bar
+					at the top of the page, once you get there.
+					{{ end }}
 				{{ end }}
-			{{ end }}
+			</div>
 		</div>
 	</div>
 </html>

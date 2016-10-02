@@ -169,9 +169,14 @@ func (a Sports) Less(i, j int) bool {
 	if a[i].Name == "Premier League" {
 		return true
 	}
+	if a[j].Name == "Premier League" {
+		return false
+	}
 	return a[i].Name < a[j].Name
 }
 
+var haveResults = false
+var bcast = sync.NewCond(&sync.Mutex{})
 var sportsList Sports
 var sportsMu sync.Mutex
 
@@ -182,6 +187,11 @@ func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
+	bcast.L.Lock()
+	for haveResults == false {
+		bcast.Wait()
+	}
+	bcast.L.Unlock()
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := indexTpl.Execute(w, sportsList); err != nil {
 		handlers.Logger.Error("Error rendering template", "err", err)
@@ -197,6 +207,7 @@ func NewSportsEvent(evt *Event) *SportsEvent {
 }
 
 func fetchBody() {
+	start := time.Now()
 	handlers.Logger.Info("Fetching documents...")
 	resp, err := http.Get("http://www.nbcsports.com/live#full-events-replays")
 	if err != nil {
@@ -226,8 +237,9 @@ func fetchBody() {
 	sort.Sort(sports)
 	sportsMu.Lock()
 	sportsList = sports
+	haveResults = true
 	sportsMu.Unlock()
-	handlers.Logger.Info("Replaced Events with latest data")
+	handlers.Logger.Info("Replaced Events with latest data", "duration", time.Since(start))
 }
 
 func main() {
@@ -236,13 +248,11 @@ func main() {
 	http.Handle("/", handlers.Log(handlers.UUID(handlers.Server(&server{}, "nbc-replays"))))
 	cleanupDone := make(chan bool, 1)
 	go func() {
-		timeout := time.Tick(5 * time.Second)
-		now := time.After(1 * time.Millisecond)
+		fetchBody()
+		ticker := time.Tick(15 * time.Second)
 		for {
 			select {
-			case <-now:
-				fetchBody()
-			case <-timeout:
+			case <-ticker:
 				fetchBody()
 			case <-c:
 				fmt.Println("caught interrupt, quitting")
