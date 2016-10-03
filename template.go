@@ -53,7 +53,7 @@ var indexStr = `
 					<h2>{{ $sport.Name }}</h2>
 					<ul>
 					{{ range $sport.Events }}
-						<li><a href="{{ .DestinationURL }}">{{ .Title }}</a>
+						<li><a href="{{ .DestinationURL }}">{{ .Title }}</a> ({{ (.Date.Format "January 2") }})
 					{{ end }}
 					</ul>
 					{{ if eq $sport.Name "Premier League" }}

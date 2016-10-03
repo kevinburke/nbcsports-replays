@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -16,6 +17,8 @@ import (
 	"github.com/kevinburke/handlers"
 	"golang.org/x/net/html"
 )
+
+const NBC_URL = "http://www.nbcsports.com/live#full-events-replays"
 
 func checkError(err error, msg string) {
 	if err == nil {
@@ -51,6 +54,8 @@ type Event struct {
 	DestinationURL   string `json:"destination_url"`
 	DMAList          string `json:"dma_list"`
 	FeatureImageURL  string `json:"feature_image_url"`
+
+	Date time.Time
 }
 
 func hasClass(token html.Token, className string) bool {
@@ -132,6 +137,21 @@ func getEvents(r io.Reader) ([]*Event, error) {
 					token = z.Token()
 					evt.Title = token.Data
 				}
+				if token.Data == "span" && hasClass(token, "video-event-thumb__event-day") {
+					innertt := z.Next()
+					if err := z.Err(); err != nil {
+						return events, err
+					}
+					if innertt != html.TextToken {
+						return events, fmt.Errorf("unexpected text token inside span: %#v", z.Token())
+					}
+					token = z.Token()
+					t, err := time.Parse("2006/01/02", strconv.Itoa(time.Now().Year())+"/"+token.Data)
+					if err != nil {
+						continue
+					}
+					evt.Date = t
+				}
 			case html.EndTagToken:
 				depth--
 			case html.SelfClosingTagToken:
@@ -158,6 +178,9 @@ type SportsEvent struct {
 }
 
 func (s Sports) ShouldSplit(idx int) bool {
+	if len(s) <= 2 {
+		return false
+	}
 	return idx == (len(s)+1)/2
 }
 
@@ -209,7 +232,7 @@ func NewSportsEvent(evt *Event) *SportsEvent {
 func fetchBody() {
 	start := time.Now()
 	handlers.Logger.Info("Fetching documents...")
-	resp, err := http.Get("http://www.nbcsports.com/live#full-events-replays")
+	resp, err := http.Get(NBC_URL)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error downloading response: %s", err.Error())
 		return
