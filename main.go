@@ -1,4 +1,4 @@
-package main
+package nbcsports_replays
 
 import (
 	"fmt"
@@ -6,7 +6,6 @@ import (
 	"io"
 	"net/http"
 	"os"
-	"os/signal"
 	"regexp"
 	"sort"
 	"strconv"
@@ -19,6 +18,8 @@ import (
 )
 
 const NBC_URL = "http://www.nbcsports.com/live#full-events-replays"
+
+const Version = "0.1"
 
 func checkError(err error, msg string) {
 	if err == nil {
@@ -229,7 +230,7 @@ func NewSportsEvent(evt *Event) *SportsEvent {
 	}
 }
 
-func fetchBody() {
+func FetchBody() {
 	start := time.Now()
 	handlers.Logger.Info("Fetching documents...")
 	resp, err := http.Get(NBC_URL)
@@ -265,32 +266,6 @@ func fetchBody() {
 	handlers.Logger.Info("Replaced Events with latest data", "duration", time.Since(start))
 }
 
-func main() {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	http.Handle("/", handlers.Log(handlers.UUID(handlers.Server(&server{}, "nbc-replays"))))
-	cleanupDone := make(chan bool, 1)
-	go func() {
-		fetchBody()
-		ticker := time.Tick(15 * time.Second)
-		for {
-			select {
-			case <-ticker:
-				fetchBody()
-			case <-c:
-				fmt.Println("caught interrupt, quitting")
-				cleanupDone <- true
-				return
-			}
-		}
-	}()
-
-	go func() {
-		http.ListenAndServe("127.0.0.1:8965", nil)
-	}()
-	go func() {
-		time.Sleep(30 * time.Millisecond)
-		fmt.Println("Listening on port 8965...")
-	}()
-	<-cleanupDone
-}
+var IndexServer = handlers.Log(handlers.UUID(
+	handlers.Server(&server{}, "nbc-replays/"+Version),
+))

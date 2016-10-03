@@ -1,4 +1,4 @@
-package main
+package nbcsports_replays
 
 var indexStr = `
 <!doctype html>
