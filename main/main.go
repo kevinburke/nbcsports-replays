@@ -15,20 +15,7 @@ func main() {
 	signal.Notify(c, os.Interrupt)
 	http.Handle("/", nbcsports.IndexServer)
 	cleanupDone := make(chan bool, 1)
-	go func() {
-		nbcsports.FetchBody()
-		ticker := time.Tick(15 * time.Second)
-		for {
-			select {
-			case <-ticker:
-				nbcsports.FetchBody()
-			case <-c:
-				fmt.Println("caught interrupt, quitting")
-				cleanupDone <- true
-				return
-			}
-		}
-	}()
+	go nbcsports.Fetch()
 
 	go func() {
 		http.ListenAndServe("127.0.0.1:8965", nil)

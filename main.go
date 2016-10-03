@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/signal"
 	"regexp"
 	"sort"
 	"strconv"
@@ -206,7 +207,28 @@ var sportsMu sync.Mutex
 
 type server struct{}
 
+var once sync.Once
+
+func Fetch() {
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	FetchBody()
+	ticker := time.Tick(15 * time.Second)
+	for {
+		select {
+		case <-ticker:
+			FetchBody()
+		case <-c:
+			fmt.Println("caught interrupt, quitting")
+			return
+		}
+	}
+}
+
 func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	once.Do(func() {
+		go Fetch()
+	})
 	if r.URL.Path == "/favicon.ico" {
 		w.WriteHeader(http.StatusNotFound)
 		return
@@ -262,6 +284,7 @@ func FetchBody() {
 	sportsMu.Lock()
 	sportsList = sports
 	haveResults = true
+	bcast.Broadcast()
 	sportsMu.Unlock()
 	handlers.Logger.Info("Replaced Events with latest data", "duration", time.Since(start))
 }
