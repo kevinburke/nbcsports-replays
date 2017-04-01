@@ -2,7 +2,7 @@ test:
 	go test ./...
 
 serve:
-	go run main.go template.go
+	go run main/main.go
 
 watch:
 	go install github.com/jmhodges/justrun

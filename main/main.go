@@ -1,28 +1,32 @@
 package main
 
 import (
-	"fmt"
+	"context"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
-	"time"
 
+	"github.com/kevinburke/handlers"
 	nbcsports "github.com/kevinburke/nbcsports-replays"
 )
 
 func main() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt)
+	ln, err := net.Listen("tcp", "127.0.0.1:8965")
+	if err != nil {
+		handlers.Logger.Error("Error listening on port", "err", err)
+		os.Exit(2)
+	}
 	http.Handle("/", nbcsports.IndexServer)
-	cleanupDone := make(chan bool, 1)
-	go nbcsports.Fetch()
+	ctx, cancel := context.WithCancel(context.Background())
+	go nbcsports.FetchBody(ctx)
 
+	handlers.Logger.Info("Listening on port 8965...")
 	go func() {
-		http.ListenAndServe("127.0.0.1:8965", nil)
+		http.Serve(ln, http.DefaultServeMux)
 	}()
-	go func() {
-		time.Sleep(30 * time.Millisecond)
-		fmt.Println("Listening on port 8965...")
-	}()
-	<-cleanupDone
+	<-c
+	cancel()
 }

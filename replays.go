@@ -1,12 +1,12 @@
 package nbcsports_replays
 
 import (
+	"context"
 	"fmt"
 	"html/template"
 	"io"
 	"net/http"
 	"os"
-	"os/signal"
 	"regexp"
 	"sort"
 	"strconv"
@@ -209,25 +209,22 @@ type server struct{}
 
 var once sync.Once
 
-func Fetch() {
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	FetchBody()
+func Fetch(ctx context.Context) {
+	FetchBody(ctx)
 	ticker := time.Tick(15 * time.Second)
 	for {
 		select {
-		case <-ticker:
-			FetchBody()
-		case <-c:
-			fmt.Println("caught interrupt, quitting")
+		case <-ctx.Done():
 			return
+		case <-ticker:
+			FetchBody(ctx)
 		}
 	}
 }
 
 func (s *server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	once.Do(func() {
-		go Fetch()
+		go Fetch(context.Background())
 	})
 	if r.URL.Path == "/favicon.ico" {
 		w.WriteHeader(http.StatusNotFound)
@@ -252,10 +249,15 @@ func NewSportsEvent(evt *Event) *SportsEvent {
 	}
 }
 
-func FetchBody() {
+func FetchBody(ctx context.Context) {
 	start := time.Now()
 	handlers.Logger.Info("Fetching documents...")
-	resp, err := http.Get(NBC_URL)
+	req, err := http.NewRequest("GET", NBC_URL, nil)
+	if err != nil {
+		panic(err)
+	}
+	req = req.WithContext(ctx)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error downloading response: %s", err.Error())
 		return
